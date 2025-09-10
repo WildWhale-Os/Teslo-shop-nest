@@ -3,9 +3,12 @@ import {
   BeforeUpdate,
   Column,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { ProductImage } from './product-image.entity';
 
+/// puede ser remombrada las tablas por medio de @Entity({name: <nombre-tabla>})
 @Entity()
 export class Product {
   @PrimaryGeneratedColumn('uuid')
@@ -54,6 +57,12 @@ export class Product {
     default: [],
   })
   tags: string[];
+
+  @OneToMany(() => ProductImage, (image) => image.product, {
+    cascade: true,
+    eager: true,
+  })
+  images?: ProductImage[];
 
   @BeforeInsert()
   checkSlugInsert() {
