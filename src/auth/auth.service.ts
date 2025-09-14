@@ -9,12 +9,15 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto, LoginUserDto } from './dto';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
   ) {}
   async create(createUserDto: CreateUserDto) {
     try {
@@ -24,8 +27,11 @@ export class AuthService {
         password: bcrypt.hashSync(password, 10),
       });
       await this.userRepository.save(user);
-      // TODO: return jwt
-      return user;
+
+      return {
+        ...user,
+        token: this.getJwtToken({ id: user.id }),
+      };
     } catch (error) {
       this.handleError(error);
     }
@@ -35,20 +41,37 @@ export class AuthService {
     const { password, email } = loginUserDto;
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { email: true, password: true },
+      select: { email: true, password: true, id: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid Credencials');
+      console.log('no user');
+      throw new UnauthorizedException('Invalid Credentials');
     }
 
     if (!bcrypt.compareSync(password, user.password)) {
-      throw new UnauthorizedException('Invalid Credencials');
+      console.log('incorrect password');
+      throw new UnauthorizedException('Invalid Credentials');
     }
 
-    // TODO: retornar jwt
-    return user;
+    return {
+      ...user,
+      token: this.getJwtToken({ id: user.id }),
+    };
   }
+
+  checkAuthStatus(user: User) {
+    return {
+      ...user,
+      toke: this.getJwtToken({ id: user.id }),
+    };
+  }
+
+  getJwtToken(payload: JwtPayload) {
+    const token = this.jwtService.sign(payload);
+    return token;
+  }
+
   private handleError(error: any): never {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (error.code === '23505') {

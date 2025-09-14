@@ -12,6 +12,7 @@ import { DataSource, EntityNotFoundError, Repository } from 'typeorm';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { validate as isUUID } from 'uuid';
 import { ProductImage, Product } from './entities';
+import { User } from 'src/auth/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -40,7 +41,7 @@ export class ProductsService {
     throw new InternalServerErrorException('Help!');
   }
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, user: User) {
     try {
       const { images = [], ...productDetail } = createProductDto;
       const product = this.productRepository.create({
@@ -48,6 +49,7 @@ export class ProductsService {
         images: images.map((image) =>
           this.imageRepository.create({ url: image }),
         ),
+        user,
       });
       await this.productRepository.save(product);
       return { ...product, images };
@@ -98,7 +100,7 @@ export class ProductsService {
     return { ...rest, images: images?.map((img) => img.url) };
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
     const { images, ...toUpdate } = updateProductDto;
     const product = await this.productRepository.preload({
       id,
@@ -109,6 +111,7 @@ export class ProductsService {
       throw new NotFoundException(`Producto con ID ${id} no encontrado`);
     }
 
+    product.user = user;
     // create query runner
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
